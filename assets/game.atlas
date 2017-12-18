@@ -1,0 +1,15 @@
+images {
+  image: "/assets/images/boxAlt.png"
+}
+images {
+  image: "/assets/images/grassLeft.png"
+}
+images {
+  image: "/assets/images/grassMid.png"
+}
+images {
+  image: "/assets/images/grassRight.png"
+}
+margin: 0
+extrude_borders: 2
+inner_padding: 0

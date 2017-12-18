@@ -1,0 +1,101 @@
+go.property("timer", 0)
+go.property("zoom_factor", 1)
+
+local camera = require "orthographic.camera"
+
+local BOX_HEIGHT = 70
+
+local PROJECTOR = hash("ZOOMOUT")
+local CAMERA = hash("/camera")
+local BOX = hash("/box")
+
+local function wait(duration, cb)
+	go.animate("#", "timer", go.PLAYBACK_ONCE_FORWARD, 0, go.EASING_LINEAR, duration, 0, cb)
+end
+
+--- Calculate max height of boxes
+local function max_height(self)
+	local ground = go.get_position("ground").y
+	local max = ground
+	for id,_ in pairs(self.boxes) do
+		local y = go.get_position(id).y
+		max = math.max(max, y)
+	end
+	return math.floor(max - ground) / BOX_HEIGHT
+end
+
+local function drop_box(self, id)
+	-- spawn a box and add it to the lookup table
+	local id = factory.create("#boxfactory", go.get_position(BOX))
+	self.boxes[id] = true
+	
+	-- release input focus and hide moving box
+	msg.post(".", "release_input_focus")
+	msg.post(msg.url(nil, BOX, "sprite"), "disable")
+
+	-- wait 2 seconds, then zoom, show moving box and update score
+	wait(2, function()
+		local height = max_height(self)
+		local zoom_to = 1 - height * 0.05
+		go.animate("#", "zoom_factor", go.PLAYBACK_ONCE_FORWARD, zoom_to, go.EASING_LINEAR, 1, 0, function()
+			msg.post(msg.url(nil, BOX, "sprite"), "enable")
+			msg.post(".", "acquire_input_focus")
+			msg.post("#hud", "update_score", { score = math.ceil(height * 100) })
+		end)
+	end)
+end
+
+-- Delete a box and remove it from the lookup table
+local function remove_box(self, id)
+	self.boxes[id] = nil
+	go.delete(id)
+end
+
+function init(self)
+	math.randomseed(os.time())
+	self.boxes = {}
+	msg.post("@render:", "clear_color", { color = vmath.vector4(0.2, 0.3, 0.7, 1.0) })
+	msg.post(".", "acquire_input_focus")
+
+	-- animate the moving box left and right in an inifinite loop
+	go.animate(BOX, "position.x", go.PLAYBACK_LOOP_PINGPONG, 140, go.EASING_LINEAR, 2)
+
+	-- create and use a camera projection that will always zoom according to current
+	-- zoom factor
+	camera.add_projector(PROJECTOR, function(camera_id, near_z, far_z)
+		local window_width, window_height = camera.get_window_size()
+		local display_width, display_height = camera.get_display_size()
+		local projected_width = window_width / self.zoom_factor
+		local projected_height = window_height / self.zoom_factor
+		local xoffset = -(projected_width - display_width) / 2
+		local yoffset = -(projected_height - display_height) / 2
+		return vmath.matrix4_orthographic(xoffset, xoffset + projected_width, yoffset, yoffset + projected_height, near_z, far_z)
+	end)
+	camera.use_projector(CAMERA, PROJECTOR)
+end
+
+function update(self, dt)
+	-- keep camera at bottom of screen
+	local bounds = camera.screen_to_world_bounds(CAMERA)
+	local camera_pos = go.get_position(CAMERA)
+	camera_pos.y = (bounds.y - bounds.w) / 2
+	go.set_position(camera_pos, CAMERA)
+
+	-- keep box at same vertical distance from top of screen
+	local box_pos = go.get_position(BOX)
+	box_pos.y = bounds.y - 120
+	go.set_position(box_pos, BOX)
+end
+
+function on_message(self, message_id, message, sender)
+	-- the box has fallen off the platform - delete it
+	if message_id == hash("collision_response") and message.group == hash("box") then
+		remove_box(self, message.other_id)
+	end
+end
+
+function on_input(self, action_id, action)
+	if action_id == hash("touch") and action.released then
+		drop_box(self)
+	end
+end
