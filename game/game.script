@@ -40,7 +40,7 @@ local function drop_box(self, id)
 		go.animate("#", "zoom_factor", go.PLAYBACK_ONCE_FORWARD, zoom_to, go.EASING_LINEAR, 1, 0, function()
 			msg.post(msg.url(nil, BOX, "sprite"), "enable")
 			msg.post(".", "acquire_input_focus")
-			msg.post("#hud", "update_score", { score = math.ceil(height * 100) })
+			msg.post("#hud", "update_score", { score = math.floor(max_height(self) + 0.5) * 100 })
 		end)
 	end)
 end
