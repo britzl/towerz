@@ -35,12 +35,18 @@ local function drop_box(self, id)
 
 	-- wait 2 seconds, then zoom, show moving box and update score
 	wait(2, function()
-		local height = max_height(self)
-		local zoom_to = 1 - height * 0.05
+		local zoom_to = 1 - max_height(self) * 0.05
 		go.animate("#", "zoom_factor", go.PLAYBACK_ONCE_FORWARD, zoom_to, go.EASING_LINEAR, 1, 0, function()
 			msg.post(msg.url(nil, BOX, "sprite"), "enable")
 			msg.post(".", "acquire_input_focus")
-			msg.post("#hud", "update_score", { score = math.floor(max_height(self) + 0.5) * 100 })
+			msg.post("#hud", "update_score", {
+				-- the score is equal to the number of boxes multiplied by 100;
+				-- but max_height() returns the approximate height of the tower;
+				-- we round this height by adding 0.5 and flooring the result (since Lua doesn't have a built-in 'round' function)
+				score = math.floor(
+					max_height(self) + 0.5 -- we call max_height again here, because the number of boxes could have changed during the animation (boxes may still be falling)
+				) * 100
+			})
 		end)
 	end)
 end
