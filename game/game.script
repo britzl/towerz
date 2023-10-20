@@ -4,6 +4,8 @@ go.property("zoom_factor", 1)
 local camera = require "orthographic.camera"
 
 local BOX_HEIGHT = 70
+local BACKGROUND_COLOR = vmath.vector4(0.2, 0.3, 0.7, 1.0) -- game scene background color
+local PADDING_TOP = 120 -- distance between the moving box and the top of the screen
 
 local PROJECTOR = hash("ZOOMOUT")
 local CAMERA = hash("/camera")
@@ -60,7 +62,7 @@ end
 function init(self)
 	math.randomseed(os.time())
 	self.boxes = {}
-	msg.post("@render:", "clear_color", { color = vmath.vector4(0.2, 0.3, 0.7, 1.0) })
+	msg.post("@render:", "clear_color", { color = BACKGROUND_COLOR})
 	msg.post(".", "acquire_input_focus")
 
 	-- animate the moving box left and right in an inifinite loop
@@ -89,7 +91,7 @@ function update(self, dt)
 
 	-- keep box at same vertical distance from top of screen
 	local box_pos = go.get_position(BOX)
-	box_pos.y = bounds.y - 120
+	box_pos.y = bounds.y - PADDING_TOP
 	go.set_position(box_pos, BOX)
 end
 
